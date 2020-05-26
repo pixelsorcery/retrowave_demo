@@ -4,10 +4,12 @@
 #define PLANE  0
 #define SPHERE 1
 
+static const float N = 50.0;
+
 struct PS_INPUT
 {
-	float4 pos         : SV_POSITION;
-	float2 tex         : TEXCOORD0;
+	float4 pos : SV_POSITION;
+	float2 tex : TEXCOORD0;
 };
 
 static const float4 skyTop = float4(0.15f, 0.045f, 0.25f, 1.0f);
@@ -15,6 +17,45 @@ static const float4 skyBottom = float4(0.60f, 0.18f, 0.996f, 1.0f);
 
 static const float2 resolution = float2(renderer::width, renderer::height);
 
+// see https://www.iquilezles.org/www/articles/checkerfiltering/checkerfiltering.htm
+float gridTextureGradBoxFilter(float2 uv, float2 ddx, float2 ddy)
+{
+	uv += 0.5f;
+	float2 w = max(abs(ddx), abs(ddy)) + 0.01;
+	float2 a = uv + 0.5 * w;
+	float2 b = uv - 0.5 * w;
+
+	float2 i = (floor(a) + min(frac(a) * N, 1.0) -
+		floor(b) - min(frac(b) * N, 1.0)) / (N * w);
+
+	return (1.0 - i.x) * (1.0 - i.y);
+}
+
+// Generate color based on object uv and position
+float gridTexture(float2 uv)
+{
+	uv += 0.5f;
+	float2 i = step(frac(uv), float2(1.0 / N, 1.0 / N));
+	return (1.0 - i.x) * (1.0 - i.y);
+}
+
+// Calculate uv coordinate of object
+float2 texCoords(float3 pos, int objectType)
+{
+	float2 uv;
+	if (objectType == PLANE)
+	{
+		uv = pos.xz;
+	}
+	else if (objectType == SPHERE)
+	{
+		// Todo
+	}
+
+	return 0.5 * uv;
+}
+
+// Check if ray intersects with an object and return position, distance along ray, normal and object type
 float traceRay(float3 rayOrigin, float3 rayDir, inout float3 pos, inout float3 nor, inout int objType)
 {
 	float tmin = 10000;
@@ -22,11 +63,11 @@ float traceRay(float3 rayOrigin, float3 rayDir, inout float3 pos, inout float3 n
 	nor = float3(0.0f, 0.0f, 0.0f);
 	objType = NONE;
 
-	// raytrace plane
+	// Raytrace plane
 	// ray plane intersection, since normal is (0, 1, 0) only y component matters
 	// simplified version of 
 	//float t = -dot(rayOrigin-0.01, nor)/dot(rayDir, nor);
-	float t = (0.01 - rayOrigin.y) / rayDir.y;
+	float t = (-1.0 - rayOrigin.y) / rayDir.y;
 
 	if (t > 0.0)
 	{
@@ -39,8 +80,10 @@ float traceRay(float3 rayOrigin, float3 rayDir, inout float3 pos, inout float3 n
 	return tmin;
 }
 
+// Creates ray based on camera position
 void createRay(in float4 pixel, inout float3 rayOrigin, inout float3 rayDirection)
 {
+	// Remap input position into ndc space in range -1..1
 	float2 p = (2 * pixel.xy - resolution) / resolution.y;
 
 	float3 camPos = float3(0.0f, 1.0f, 5.0f);
@@ -58,7 +101,9 @@ void createRay(in float4 pixel, inout float3 rayOrigin, inout float3 rayDirectio
 
 float4 main(PS_INPUT input) : SV_TARGET
 {
-	input.pos.y = resolution.y - input.pos.y; // invert y
+	// Invert y
+	input.pos.y = resolution.y - input.pos.y;
+	// Remap input position into ndc space in range -1..1
 	float2 p = (2 * input.pos.xy - resolution) / resolution.y;
 
 	float radius = 0.5f;
@@ -67,12 +112,12 @@ float4 main(PS_INPUT input) : SV_TARGET
 	float2 diff = p - ctr;
 	if (dot(diff, diff) < (radius * radius) && p.y > 0.0f)
 	{
-		// sun color
+		// Sun color
 		output = float4(0.97f, 0.46f, 0.3f, 1.0f);
 	}
 	else
 	{
-		// sky
+		// Sky
 		output = lerp(skyTop, skyBottom, .5 - p.y/2);
 	}
 
@@ -83,7 +128,7 @@ float4 main(PS_INPUT input) : SV_TARGET
 	float3 rayOriginDdy;
 	float3 rayDirDdy;
 
-	// create main ray and rays for partial derivatives basically one pixel to right and one pixel down
+	// Create main ray and rays for partial derivatives basically one pixel to right and one pixel down
 	createRay(input.pos, rayOrigin, rayDir);
 	createRay(input.pos + float4(1.0, 0.0, 0.0, 0.0), rayOriginDdx, rayDirDdx);
 	createRay(input.pos + float4(0.0, 1.0, 0.0, 0.0), rayOriginDdy, rayDirDdy);
@@ -105,12 +150,27 @@ float4 main(PS_INPUT input) : SV_TARGET
 	// the same normal. Then we divide the ddx/y - position projection with the new ray
 	// and we get the amnt we have to multiply to reach the new ddx pos on the tangent
 	// plane.
-	float3 ddx_pos = rayOriginDdx - rayDirDdx * dot(rayOriginDdx - pos, nor) / dot(rayDirDdx, nor);
-	float3 ddy_pos = rayOriginDdy - rayDirDdy * dot(rayOriginDdy - pos, nor) / dot(rayDirDdy, nor);
+	float3 posDdx = rayOriginDdx - rayDirDdx * dot(rayOriginDdx - pos, nor) / dot(rayDirDdx, nor);
+	float3 posDdy = rayOriginDdy - rayDirDdy * dot(rayOriginDdy - pos, nor) / dot(rayDirDdy, nor);
+
+	// Calculate uv coords
+	float2 uv = texCoords(pos, objectType);
+
+	// Texture diffs
+	float uvDdx = texCoords(posDdx, objectType) - uv;
+	float uvDdy = texCoords(posDdy, objectType) - uv;
 
 	if (objectType == PLANE)
 	{
-		output = float4(1.0, 1.0, 1.0, 1.0f);
+		float color = gridTextureGradBoxFilter(uv, uvDdx, uvDdy);
+		if (color == 1)
+		{
+			output = float4(133.0 / 255.0, 46.0 / 255.0, 106.0 / 255.0, 1.0f);
+		}
+		else
+		{
+			output = float4(217.0 / 255.0, 117.0 / 255.0, 217.0 / 255.0, 1.0f);
+		}
 	}
 
 	return output;
