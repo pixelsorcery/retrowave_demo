@@ -6,6 +6,13 @@
 
 static const float N = 50.0;
 
+struct Constants
+{
+	float time;
+};
+
+ConstantBuffer<Constants> cb : register(b0);
+
 struct PS_INPUT
 {
 	float4 pos : SV_POSITION;
@@ -52,6 +59,7 @@ float2 texCoords(float3 pos, int objectType)
 		// Todo
 	}
 
+	uv.y -= cb.time * 10;
 	return 0.5 * uv;
 }
 

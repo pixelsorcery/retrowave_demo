@@ -78,6 +78,7 @@ int WINAPI WinMain(HINSTANCE hThisInst, HINSTANCE hLastInst, LPSTR lpszCmdLine, 
     MSG msg = {};
 
     std::chrono::steady_clock::time_point oldTime = std::chrono::high_resolution_clock::now();
+	std::chrono::steady_clock::time_point programStartTime = std::chrono::high_resolution_clock::now();
     while (msg.message != WM_QUIT)
     {
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -88,9 +89,12 @@ int WINAPI WinMain(HINSTANCE hThisInst, HINSTANCE hLastInst, LPSTR lpszCmdLine, 
 
         std::chrono::steady_clock::time_point newTime = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> deltaTime = newTime - oldTime;
+		float deltaTimeFloat = deltaTime / 1s;
 
+		std::chrono::duration<float> timeSinceStart = newTime - programStartTime;
+		float timeSinceStartFloat = timeSinceStart / 1s;
         // render frame
-        app3->drawFrame(deltaTime/1s);
+        app3->drawFrame(timeSinceStartFloat);
         oldTime = newTime;
     }
 

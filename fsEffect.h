@@ -6,8 +6,8 @@
 struct FsEffect;
 struct Dx12Renderer;
 
-bool initEffect(Dx12Renderer*, FsEffect*, const char*, const char*);
-void renderEffect(Dx12Renderer*, FsEffect*);
+bool initEffect(Dx12Renderer*, FsEffect*, const char* vs, const char* ps);
+void renderEffect(Dx12Renderer*, FsEffect*, float time);
 
 struct FsEffect
 {

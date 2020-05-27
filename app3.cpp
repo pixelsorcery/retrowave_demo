@@ -52,7 +52,7 @@ void App3::drawFrame(float time)
     pCmdList->RSSetScissorRects(1, &pRenderer->defaultScissor);
 
     // draw sunset
-    renderEffect(pRenderer.get(), &sunset);
+    renderEffect(pRenderer.get(), &sunset, time);
     //renderEffect(pRenderer.get(), &road);
     // exec cmd buffer
     transitionResource(pRenderer.get(), pRenderer->backbuf[pRenderer->currentSubmission], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

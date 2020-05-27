@@ -10,9 +10,15 @@ bool initEffect(Dx12Renderer* pRenderer, FsEffect* pEffect, const char* vs, cons
     pEffect->pModelVs = compileShaderFromFile(vs, "vs_5_1", "main");
     pEffect->pModelPs = compileShaderFromFile(ps, "ps_5_1", "main");
 
+	D3D12_ROOT_PARAMETER param = {};
+	param.Constants.Num32BitValues = 1;
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+
     // empty root signature
     D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
     //rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	rootSigDesc.NumParameters = 1;
+	rootSigDesc.pParameters = &param;
 
     // Serialize and create root signature
     CComPtr<ID3DBlob> serializedRootSig;
@@ -24,7 +30,6 @@ bool initEffect(Dx12Renderer* pRenderer, FsEffect* pEffect, const char* vs, cons
         char* error = (char*)errors->GetBufferPointer();
         ErrorMsg(error);
     }
-
 
     if (S_OK != hr)
     {
@@ -74,13 +79,17 @@ bool initEffect(Dx12Renderer* pRenderer, FsEffect* pEffect, const char* vs, cons
     return true;
 }
 
-void renderEffect(Dx12Renderer* pRenderer, FsEffect* pEffect)
+void renderEffect(Dx12Renderer* pRenderer, FsEffect* pEffect, float time)
 {
     ID3D12GraphicsCommandList* pCmdList = pRenderer->cmdSubmissions[pRenderer->currentSubmission].pGfxCmdList;
 
     // bind rs
     // set root sig
     pCmdList->SetGraphicsRootSignature(pEffect->pRootSignature);
+	uint val = 0;
+	memcpy(&val, &time, sizeof(time));
+	pCmdList->SetGraphicsRoot32BitConstant(0, val, 0);
+
 
     // bind pso
     pCmdList->SetPipelineState(pEffect->pPipeline);
