@@ -113,7 +113,7 @@ float4 main(PS_INPUT input) : SV_TARGET
 	if (dot(diff, diff) < (radius * radius) && p.y > 0.0f)
 	{
 		// Sun color
-		output = float4(0.97f, 0.46f, 0.3f, 1.0f);
+		output = float4(0.97f, 0.46f, 0.3f, 1.0f) * step(frac(p.y * 15) - p.y/5, 8/10.0);
 	}
 	else
 	{
@@ -157,20 +157,13 @@ float4 main(PS_INPUT input) : SV_TARGET
 	float2 uv = texCoords(pos, objectType);
 
 	// Texture diffs
-	float uvDdx = texCoords(posDdx, objectType) - uv;
-	float uvDdy = texCoords(posDdy, objectType) - uv;
+	float2 uvDdx = texCoords(posDdx, objectType) - uv;
+	float2 uvDdy = texCoords(posDdy, objectType) - uv;
 
 	if (objectType == PLANE)
 	{
 		float color = gridTextureGradBoxFilter(uv, uvDdx, uvDdy);
-		if (color == 1)
-		{
-			output = float4(133.0 / 255.0, 46.0 / 255.0, 106.0 / 255.0, 1.0f);
-		}
-		else
-		{
-			output = float4(217.0 / 255.0, 117.0 / 255.0, 217.0 / 255.0, 1.0f);
-		}
+		output = lerp(float4(217.0 / 255.0, 117.0 / 255.0, 217.0 / 255.0, 1.0f), float4(133.0 / 255.0, 46.0 / 255.0, 106.0 / 255.0, 1.0f), color);
 	}
 
 	return output;
