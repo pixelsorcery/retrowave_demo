@@ -135,7 +135,7 @@ float4 main(PS_INPUT input) : SV_TARGET
 	skylineHeight *= 1.0 - abs(p.x) * falloffFactor;
 
 	float t = TMAX;
-	if (p.y * 2.7 < skylineHeight)
+	if (p.y > 0.0 && p.y * 2.7 < skylineHeight)
 	{
 		output = float4(0.1, 0.1, 0.1, 1.0);
 		output *= rand(p.y) * rand(p.x) * 3.0f;
