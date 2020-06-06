@@ -127,9 +127,13 @@ float4 main(PS_INPUT input) : SV_TARGET
 	float2 diff = p - ctr;
 
 	// get random heights of buildings
-	float skylineHeight = rand((trunc(p.x* 100) % 100) * 100);
+	float width = 50.0;
+	float skylineHeight = rand((trunc(p.x* width) % width));
+
 	// have them get smaller along the edges
-	skylineHeight *= 1.0 - abs(p.x) * 0.5;
+	float falloffFactor = 0.7;
+	skylineHeight *= 1.0 - abs(p.x) * falloffFactor;
+
 	float t = TMAX;
 	if (p.y * 2.7 < skylineHeight)
 	{
