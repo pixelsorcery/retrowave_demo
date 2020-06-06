@@ -4,6 +4,8 @@
 #define PLANE  0
 #define SPHERE 1
 
+#define TMAX 10000
+
 static const float N = 50.0;
 
 struct Constants
@@ -66,7 +68,7 @@ float2 texCoords(float3 pos, int objectType)
 // Check if ray intersects with an object and return position, distance along ray, normal and object type
 float traceRay(float3 rayOrigin, float3 rayDir, inout float3 pos, inout float3 nor, inout int objType)
 {
-	float tmin = 10000;
+	float tmin = TMAX;
 	pos = float3(0.0f, 0.0f, 0.0f);
 	nor = float3(0.0f, 0.0f, 0.0f);
 	objType = NONE;
@@ -74,7 +76,7 @@ float traceRay(float3 rayOrigin, float3 rayDir, inout float3 pos, inout float3 n
 	// Raytrace plane
 	// ray plane intersection, since normal is (0, 1, 0) only y component matters
 	// simplified version of 
-	//float t = -dot(rayOrigin-0.01, nor)/dot(rayDir, nor);
+	// float t = -dot(rayOrigin-0.01, nor)/dot(rayDir, nor);
 	float t = (-1.0 - rayOrigin.y) / rayDir.y;
 
 	if (t > 0.0)
@@ -107,6 +109,11 @@ void createRay(in float4 pixel, inout float3 rayOrigin, inout float3 rayDirectio
 	rayOrigin = camPos;
 }
 
+float rand(float x)
+{
+	return frac(sin(x) * 100000.0f);
+}
+
 float4 main(PS_INPUT input) : SV_TARGET
 {
 	// Invert y
@@ -118,10 +125,23 @@ float4 main(PS_INPUT input) : SV_TARGET
 	float2 ctr = float2(0.0f, 0.3f);
 	float4 output;
 	float2 diff = p - ctr;
-	if (dot(diff, diff) < (radius * radius) && p.y > 0.0f)
+
+	// get random heights of buildings
+	float skylineHeight = rand((trunc(p.x* 100) % 100) * 100);
+	// have them get smaller along the edges
+	skylineHeight *= 1.0 - abs(p.x) * 0.5;
+	float t = TMAX;
+	if (p.y * 2.7 < skylineHeight)
+	{
+		output = float4(0.1, 0.1, 0.1, 1.0);
+		output *= rand(p.y) * rand(p.x) * 3.0f;
+		t = 50.0f;
+	}
+	else if (dot(diff, diff) < (radius * radius) && p.y > 0.0f)
 	{
 		// Sun color
 		output = float4(0.97f, 0.46f, 0.3f, 1.0f) * step(frac(p.y * 15) - p.y/5, 8/10.0);
+		t = 10.0;
 	}
 	else
 	{
@@ -146,7 +166,10 @@ float4 main(PS_INPUT input) : SV_TARGET
 	float3 nor;
 	int objectType = NONE;
 
-	float t = traceRay(rayOrigin, rayDir, pos, nor, objectType);
+	float groundt = traceRay(rayOrigin, rayDir, pos, nor, objectType);
+
+	t = min(groundt, t);
+
 	// compute ray differentials, intersect ray with tangent plane to the surface
 	//
 	// Take the new position and subtract the hit position from original camera ray.
@@ -172,6 +195,12 @@ float4 main(PS_INPUT input) : SV_TARGET
 	{
 		float color = gridTextureGradBoxFilter(uv, uvDdx, uvDdy);
 		output = lerp(float4(217.0 / 255.0, 117.0 / 255.0, 217.0 / 255.0, 1.0f), float4(133.0 / 255.0, 46.0 / 255.0, 106.0 / 255.0, 1.0f), color);
+	}
+
+	// fog
+	if (t < TMAX)
+	{
+		output = lerp(output, skyBottom, 1.0 - exp(-0.0001 * t * t));
 	}
 
 	return output;
